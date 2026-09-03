@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="ClearWrite — AI writing assistant for emails and conversations." />
-  <title>ClearWrite V3 — Write clearly. Sound like you.</title>
+  <title>ClearWrite V4 — Write clearly. Sound like you.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,37 +14,27 @@
 <div class="app-shell">
   <header class="topbar">
     <a class="brand" href="./"><span class="brand-mark">C</span><span>ClearWrite</span></a>
-    <div class="topbar-right"><span class="subtitle">Write clearly. Sound like you.</span><span class="version">V3</span></div>
+    <div class="topbar-right"><span class="subtitle">Write clearly. Sound like you.</span><span class="version">V4</span></div>
   </header>
-
   <main class="app-main">
     <section class="workspace" aria-label="ClearWrite editor">
       <div class="workspace-head">
-        <div class="mode-switch" role="tablist" aria-label="Writing mode">
-          <button class="mode active" data-mode="email" role="tab" aria-selected="true">Email</button>
-          <button class="mode" data-mode="conversation" role="tab" aria-selected="false">Conversation</button>
-        </div>
+        <div class="mode-switch" role="tablist" aria-label="Writing mode"><button class="mode active" data-mode="email" role="tab" aria-selected="true">Email</button><button class="mode" data-mode="conversation" role="tab" aria-selected="false">Conversation</button></div>
         <div class="workspace-tools"><span id="modeHint">Subject, greeting, body and sign-off.</span><button class="text-button" id="clearBtn" type="button">Clear all</button></div>
       </div>
-
-      <div class="email-fields" id="emailFields">
-        <label><span>Subject <em>optional</em></span><input id="subjectText" maxlength="180" placeholder="e.g. Firewall logs — requested timeframe" /></label>
-      </div>
-
+      <div class="email-fields" id="emailFields"><label><span>Subject <em>optional</em></span><input id="subjectText" maxlength="180" placeholder="e.g. Firewall logs — requested timeframe" /></label></div>
       <div class="editor-grid">
         <section class="editor-pane input-pane">
           <div class="pane-head"><div><span class="pane-title">Your draft</span><span class="pane-subtitle">Original message</span></div><button class="text-button" id="sampleBtn" type="button">Try example</button></div>
           <textarea id="inputText" maxlength="5000" spellcheck="true" placeholder="Start writing or paste your message here..."></textarea>
           <div class="pane-foot"><span id="charCount">0 / 5000</span><span id="wordCount">0 words</span></div>
         </section>
-
         <section class="editor-pane result-pane">
-          <div class="pane-head"><div><span class="pane-title">Improved version</span><span class="pane-subtitle" id="resultHint">Ready when you are</span></div><button class="copy-button" id="copyBtn" type="button" disabled>Copy</button></div>
+          <div class="pane-head"><div><span class="pane-title">Improved version</span><span class="pane-subtitle" id="resultHint">Ready when you are</span></div><div class="result-actions"><button class="copy-button" id="copyBtn" type="button" disabled>Copy</button><button class="use-button" id="useBtn" type="button" disabled>Use this</button></div></div>
           <div class="result-area" id="resultArea" aria-live="polite"><div class="empty-state"><div class="spark">✦</div><p>Your polished text will appear here.</p><span>Choose an action below to get started.</span></div></div>
-          <div class="pane-foot result-foot"><span id="resultMeta"></span><button class="text-button hidden" id="copyAllBtn" type="button">Copy with subject</button></div>
+          <div class="pane-foot result-foot"><span id="resultMeta"></span><div class="result-links"><button class="text-button hidden" id="copyAllBtn" type="button">Copy with subject</button><button class="text-button hidden" id="restoreBtn" type="button">Restore draft</button></div></div>
         </section>
       </div>
-
       <div class="control-bar">
         <div class="tone-control"><span class="control-label">Tone</span><div class="tone-options" role="group" aria-label="Tone"><button class="tone active" data-tone="professional">Professional</button><button class="tone" data-tone="formal">Formal</button><button class="tone" data-tone="friendly">Friendly</button><button class="tone" data-tone="assertive">Assertive</button></div></div>
         <div class="action-group"><button class="action primary" data-action="grammar" type="button">✓&nbsp; Fix grammar</button><button class="action" data-action="professional" type="button">✦&nbsp; Improve</button><button class="action" data-action="concise" type="button">↘&nbsp; Shorten</button><button class="action" data-action="tone" type="button">◉&nbsp; Apply tone</button></div>
