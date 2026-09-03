@@ -1,39 +1,43 @@
 # ClearWrite
 
-**Write clearly. Sound professional.**
+**Write clearly. Sound like you.**
 
-ClearWrite is an AI-first writing assistant focused on grammar, clarity, and workplace communication across emails and conversations.
+ClearWrite is an AI-first communication assistant focused on grammar, clarity, tone and workplace writing across emails and conversations.
 
-## V1
+## V2
 
-The first release is a polished browser-based prototype with:
+V2 expands the V1 prototype into a more complete email and conversation workflow:
 
 - Email and Conversation modes
+- Optional email subject field
 - Grammar correction
-- Professional rewriting
-- Concise rewriting
-- Formal and friendly tones
-- One-click copy
-- Responsive UI
-- No API keys in the frontend
+- One-click Improve rewrite
+- Shorten action
+- Professional, Formal, Friendly and Assertive tones
+- Copy improved text
+- Copy email with subject
+- Character and word counts
+- Example content for both modes
+- Responsive, accessible interface
+- No provider API keys in the frontend
 
-The current V1 uses a lightweight browser-side correction layer so the interface can be deployed and tested without a backend. The production AI layer will be added behind a secure server/API boundary in a later version.
+The current build remains a browser-only demo layer. It is deliberately structured so a secure AI backend can be connected later without moving provider credentials into client-side code.
 
-## Product roadmap
+## Roadmap
 
-- **V1:** Grammar correction + core writing UI
-- **V2:** AI-powered email and conversation rewriting
+- **V1:** Core grammar correction UI
+- **V2:** Email + conversation modes, tone controls and polished workflows
 - **V3:** Context-aware replies and side-by-side changes
 - **V4:** Personal writing profile and workplace style controls
-- **V5:** Browser extension for Gmail, Outlook, Teams, and Slack workflows
+- **V5:** Browser extension for Gmail, Outlook, Teams and Slack workflows
 
 ## Local development
 
-No build step is required for V1. Open `index.html` in a browser, or serve the repository with any static web server.
+No build step is required. Open `index.html` in a browser or serve the repository with any static web server.
 
 ## Deployment
 
-The project is designed to work with GitHub Pages as a static frontend. Any future AI API should remain server-side; do not place provider API keys in client-side JavaScript.
+The project is designed for GitHub Pages as a static frontend. Future AI requests should go through a secure server/API boundary. **Never place an AI provider API key in `app.js`, HTML, CSS or other client-side assets.**
 
 ## License
 
