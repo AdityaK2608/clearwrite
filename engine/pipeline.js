@@ -1,4 +1,4 @@
-// ClearWrite Engine V9 — composable processing pipeline
+// ClearWrite Engine V10 — analysis + transformation pipeline
 (function(){
   window.CWEngine=window.CWEngine||{};
   function contextualRewrite(value,context){
@@ -14,14 +14,28 @@
     if(tone==='assertive') return value.replace(/\bcould you please\b/gi,'please').replace(/\bplease share an update\b/gi,'please provide an update');
     return value;
   }
+  function buildAnalysis(text,context){
+    const linguistic=CWEngine.analyze(text);
+    const intent=CWEngine.detectIntent?CWEngine.detectIntent(text):{primary:'inform',confidence:.35,alternatives:[],scores:{}};
+    const entities=CWEngine.extractEntities?CWEngine.extractEntities(text):[];
+    const suggestions=[];
+    const s=linguistic.signals;
+    if((intent.primary==='request'||s.request)&&!s.deadline)suggestions.push({type:'missing_deadline',message:'Consider adding a deadline or expected response time.',priority:'medium'});
+    if((intent.primary==='escalation'||s.escalation)&&!s.deadline)suggestions.push({type:'missing_urgency',message:'Consider stating the required response time or urgency.',priority:'high'});
+    if(intent.primary==='followup'||s.followup)suggestions.push({type:'next_step',message:'Make the pending item and expected next step explicit.',priority:'medium'});
+    if(s.vague)suggestions.push({type:'vague_reference',message:'Replace vague references such as “this” or “it” with the specific item when useful.',priority:'low'});
+    if((intent.primary==='request'||intent.primary==='escalation')&&!entities.some(e=>e.type==='actor'))suggestions.push({type:'ownership',message:'Consider identifying who should take the requested action.',priority:'low'});
+    return {linguistic,intent,entities,suggestions,label:context&&context.label||'Writing'};
+  }
   function run(text,operation,context,tone){
     const original=text;
-    const analysis=CWEngine.analyze(text);
-    const scores=CWEngine.issueScore(analysis);
+    const contextResult=context||{key:'email',label:'Email'};
+    const analysis=buildAnalysis(text,contextResult);
+    const scores=CWEngine.issueScore(analysis.linguistic);
     const applied=CWEngine.apply(text,operation);
     let value=applied.value;
     if(operation==='concise') value=value.replace(/\bin order to\b/gi,'to').replace(/\bat this point in time\b/gi,'currently').replace(/\bdue to the fact that\b/gi,'because').replace(/\bas soon as possible\b/gi,'at the earliest');
-    if(operation==='improve'||operation==='tone') value=contextualRewrite(value,context);
+    if(operation==='improve'||operation==='tone') value=contextualRewrite(value,contextResult);
     if(operation==='tone') value=toneRewrite(value,tone);
     value=CWEngine.capitalise(CWEngine.punctuation(value));
     const validation=CWEngine.validate(original,value);
@@ -29,17 +43,13 @@
     return{text:value,changes:applied.changes,analysis,scores,validation,rolledBack:false};
   }
   window.clearwriteAnalyze=function(text,context){
-    const a=CWEngine.analyze(text),c=context||{key:'email',label:'Email'};
-    const suggestions=[];
-    if(a.signals.request&&!a.signals.deadline)suggestions.push('Consider adding a deadline or expected response time.');
-    if(a.signals.escalation&&!a.signals.deadline)suggestions.push('Consider stating the urgency or required response time.');
-    if(a.signals.followup)suggestions.push('Make the pending item and next step explicit.');
-    if(a.signals.vague)suggestions.push('Replace vague references such as “this” or “it” with the specific item when useful.');
-    return{label:c.label,context:c.key,wordCount:a.wordCount,signals:a.signals,suggestions};
+    const c=context||{key:'email',label:'Email'};
+    const a=buildAnalysis(text,c);
+    return {label:c.label,context:c.key,wordCount:a.linguistic.wordCount,signals:a.linguistic.signals,intent:a.intent,entities:a.entities,suggestions:a.suggestions};
   };
   window.clearwriteCore=function(text){return run(text,'grammar',null,null)};
-  window.clearwriteImprove=function(text,context){return run(text,'improve',context,null)};
-  window.clearwriteConcise=function(text,context){return run(text,'concise',context,null)};
+  window.clearwriteImprove=function(text,context){return run(text,'improve',context)};
+  window.clearwriteConcise=function(text,context){return run(text,'concise',context)};
   window.clearwriteTone=function(text,tone,context){return run(text,'tone',context,tone)};
   CWEngine.process=run;
 })();
