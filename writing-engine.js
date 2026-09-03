@@ -1,7 +1,7 @@
-// ClearWrite V6 — Rewrite Intelligence
-// Browser-safe deterministic rewrite layer. Preserves intent and protected tokens.
+// ClearWrite V8 — Core Writing Engine
+// Browser-safe deterministic rewriting. Preserves intent, protected tokens, and line structure.
 
-const CW_PROTECTED = /(?:https?:\/\/[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\b[A-Z]{2,}(?:[-_][A-Z0-9]+)*\b|\b\d+(?:[./:-]\d+)*\b)/g;
+const CW_PROTECTED=/(?:https?:\/\/[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\b[A-Z]{2,}(?:[-_][A-Z0-9]+)*\b|\b\d+(?:[./:-]\d+)*\b)/g;
 function cwProtect(text){const tokens=[];const value=text.replace(CW_PROTECTED,m=>{const key=`__CW_${tokens.length}__`;tokens.push([key,m]);return key});return{value,tokens}}
 function cwRestore(text,tokens){return tokens.reduce((r,[k,v])=>r.replaceAll(k,v),text)}
 function cwNormalize(text){const p=cwProtect(text);let v=p.value.replace(/\r\n?/g,'\n').replace(/[ \t]+/g,' ').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();return cwRestore(v,p.tokens)}
@@ -23,18 +23,44 @@ function cwApplyRules(text){const p=cwProtect(text);let v=p.value;const changes=
 function cwPunctuation(text){return text.split('\n').map(line=>{const t=line.trim();if(!t||/^[-•*]/.test(t)||/^https?:\/\//i.test(t))return line;return /[.!?…:]$/.test(t)?t:`${t}.`}).join('\n')}
 function cwCapitalize(text){return text.replace(/(^|[.!?]\s+)([a-z])/g,(_,p,l)=>`${p}${l.toUpperCase()}`)}
 function clearwriteCore(text){const ruled=cwApplyRules(cwNormalize(text));let result=cwCapitalize(ruled.text);result=cwPunctuation(result);return{text:result,changes:ruled.changes}}
-function cwRewrite(result, rules){const changes=[];rules.forEach(rule=>{if(rule.pattern.test(result.text)){rule.pattern.lastIndex=0;result.text=result.text.replace(rule.pattern,(...a)=>{changes.push({id:rule.id,original:a[0],replacement:rule.replacement,explanation:rule.explanation,type:'rewrite'});return rule.replacement})}rule.pattern.lastIndex=0});result.text=cwPunctuation(result.text);result.changes.push(...changes);return result}
-function clearwriteImprove(text){let result=clearwriteCore(text);return cwRewrite(result,[
-{id:'remove-filler',pattern:/\bjust wanted to let you know\b/gi,replacement:'I would like to inform you',explanation:'Removed conversational filler while preserving the intent.'},
-{id:'remove-filler-2',pattern:/\bI wanted to let you know\b/gi,replacement:'I would like to inform you',explanation:'Made the opening more direct.'},
+function cwRewrite(result,rules){const changes=[];rules.forEach(rule=>{rule.pattern.lastIndex=0;if(rule.pattern.test(result.text)){rule.pattern.lastIndex=0;result.text=result.text.replace(rule.pattern,(...a)=>{changes.push({id:rule.id,original:a[0],replacement:rule.replacement,explanation:rule.explanation,type:'rewrite'});return rule.replacement})}rule.pattern.lastIndex=0});result.text=cwPunctuation(result.text);result.changes.push(...changes);return result}
+
+const CW_IMPROVE_RULES=[
+{id:'an-issue',pattern:/\bwe are facing issue\b/gi,replacement:'we are facing an issue',explanation:'Added the missing article for natural business English.'},
+{id:'the-customer',pattern:/\bcustomer is\b/gi,replacement:'the customer is',explanation:'Added the article for more natural professional wording.'},
+{id:'customer-following-up',pattern:/\bthe customer is continuously following up\b/gi,replacement:'the customer has been following up',explanation:'Used a more natural tense for an ongoing follow-up.'},
+{id:'follow-up',pattern:/\bcontinuously following up\b/gi,replacement:'following up repeatedly',explanation:'Made the repeated follow-up more natural and precise.'},
+{id:'check-on-priority',pattern:/\bcheck on priority\b/gi,replacement:'prioritize this',explanation:'Replaced awkward wording with a direct workplace request.'},
+{id:'exact-issue',pattern:/\bwhat is the exact issue\b/gi,replacement:'what the exact issue is',explanation:'Corrected the word order in an indirect question.'},
+{id:'when-resolved',pattern:/\bwhen it will be resolved\b/gi,replacement:'when it can be resolved',explanation:'Used a more natural construction for a resolution timeline.'},
+{id:'already-asked',pattern:/\bwe already asked\b/gi,replacement:'we have already asked',explanation:'Used the present perfect for a recent action with a current outcome.'},
+{id:'infra-team',pattern:/\binfra team\b/gi,replacement:'Infra team',explanation:'Standardized the team reference.'},
+{id:'no-response',pattern:/\bthere is no response from their side\b/gi,replacement:'we have not received a response from them',explanation:'Made the statement clearer and more professional.'},
+{id:'customer-waiting',pattern:/\bcustomer is waiting\b/gi,replacement:'the customer is awaiting an update',explanation:'Made the customer status more professional.'},
+{id:'do-needful-after-core',pattern:/\bkindly take the necessary action\b/gi,replacement:'please take the necessary action',explanation:'Used a clearer and more natural request.'},
+{id:'please-check',pattern:/\bplease check\b/gi,replacement:'please review',explanation:'Used more precise workplace wording.'},
+{id:'let-us-know',pattern:/\blet us know\b/gi,replacement:'share an update on',explanation:'Made the request more specific and action-oriented.'},
+{id:'need-this-today',pattern:/\bi need this today\b/gi,replacement:'please share this today',explanation:'Converted a personal statement into a clear action request.'},
+{id:'just-wanted',pattern:/\bjust wanted to let you know\b/gi,replacement:'I would like to inform you',explanation:'Removed conversational filler while preserving the intent.'},
+{id:'wanted-to-know',pattern:/\bi wanted to let you know\b/gi,replacement:'I would like to inform you',explanation:'Made the opening more direct.'},
 {id:'hey',pattern:/\bhey\b/gi,replacement:'Hi',explanation:'Adjusted the greeting for workplace communication.'},
 {id:'get-back',pattern:/\bget back to me\b/gi,replacement:'share your feedback',explanation:'Made the request sound more natural and collaborative.'},
-{id:'check-this',pattern:/\bcheck this\b/gi,replacement:'review this',explanation:'Used more precise workplace wording.'}
-])}
-function clearwriteConcise(text){let result=clearwriteCore(text);return cwRewrite(result,[
+{id:'check-this',pattern:/\bcheck this\b/gi,replacement:'review this',explanation:'Used more precise workplace wording.'},
+{id:'please-asap',pattern:/\bplease as soon as possible\b/gi,replacement:'please share an update at the earliest opportunity',explanation:'Made the urgency explicit without using an abbreviation.'}
+];
+
+function clearwriteImprove(text,context){let result=clearwriteCore(text);result=cwRewrite(result,CW_IMPROVE_RULES);const key=context&&context.key;const contextual=[];
+if(key==='request')contextual.push({id:'request-action',pattern:/\bplease review\b/gi,replacement:'please review this and share the required action',explanation:'Strengthened the request with a clear expected action.'});
+if(key==='followup')contextual.push({id:'followup-status',pattern:/\bjust following up\b/gi,replacement:'following up on the pending item',explanation:'Made the follow-up reference explicit.'});
+if(key==='escalation')contextual.push({id:'escalation-impact',pattern:/\bissue\b/gi,replacement:'issue requiring attention',explanation:'Made the escalation context more explicit.'});
+if(key==='status')contextual.push({id:'status-update',pattern:/\bwe are facing\b/gi,replacement:'the current status is that we are facing',explanation:'Framed the message as a status update.'});
+if(key==='meeting')contextual.push({id:'meeting-purpose',pattern:/\bdiscuss\b/gi,replacement:'discuss and align on',explanation:'Made the meeting purpose more action-oriented.'});
+return contextual.length?cwRewrite(result,contextual):result}
+function clearwriteConcise(text,context){let result=clearwriteCore(text);return cwRewrite(result,[
 {id:'filler',pattern:/\b(I just wanted to let you know|I wanted to let you know|I would like to inform you)\b[,:]?\s*/gi,replacement:'',explanation:'Removed introductory filler to make the message more direct.'},
 {id:'in-order',pattern:/\bin order to\b/gi,replacement:'to',explanation:'Shortened the phrase without changing its meaning.'},
 {id:'at-this-point',pattern:/\bat this point in time\b/gi,replacement:'currently',explanation:'Replaced a wordy phrase with a concise alternative.'},
-{id:'due-to-fact',pattern:/\bdue to the fact that\b/gi,replacement:'because',explanation:'Replaced a wordy construction with a concise alternative.'}
+{id:'due-to-fact',pattern:/\bdue to the fact that\b/gi,replacement:'because',explanation:'Replaced a wordy construction with a concise alternative.'},
+{id:'as-soon-as-possible',pattern:/\bas soon as possible\b/gi,replacement:'at the earliest',explanation:'Shortened the urgency phrase.'}
 ])}
-function clearwriteTone(text,tone){let result=clearwriteImprove(text);const rules=[];if(tone==='formal')rules.push({id:'formal-greeting',pattern:/\bHi Team\b/gi,replacement:'Dear Team',explanation:'Raised the greeting formality.'},{id:'formal-hi',pattern:/\bHi\b/g,replacement:'Hello',explanation:'Raised the greeting formality.'},{id:'formal-please',pattern:/\bplease\b/gi,replacement:'kindly',explanation:'Used more formal request wording.'},{id:'formal-thanks',pattern:/\bthanks\b/gi,replacement:'thank you',explanation:'Used a more formal closing.'});if(tone==='friendly')rules.push({id:'friendly-kindly',pattern:/\bkindly\b/gi,replacement:'please',explanation:'Softened formal wording for a warmer tone.'},{id:'friendly-inform',pattern:/\bI would like to inform you\b/gi,replacement:'I wanted to let you know',explanation:'Made the phrasing warmer and more conversational.'},{id:'friendly-hello',pattern:/\bHello\b/g,replacement:'Hi',explanation:'Used a warmer greeting.'});if(tone==='assertive')rules.push({id:'assertive-could',pattern:/\bcould you please\b/gi,replacement:'please',explanation:'Made the request more direct and confident.'},{id:'assertive-issues',pattern:/\bif you encounter any issues\b/gi,replacement:'if there are any issues',explanation:'Made the wording more direct.'});return cwRewrite(result,rules)}
+function clearwriteTone(text,tone,context){let result=clearwriteImprove(text,context);const rules=[];if(tone==='formal')rules.push({id:'formal-greeting',pattern:/\bHi Team\b/gi,replacement:'Dear Team',explanation:'Raised the greeting formality.'},{id:'formal-hi',pattern:/\bHi\b/g,replacement:'Hello',explanation:'Raised the greeting formality.'},{id:'formal-please',pattern:/\bplease\b/gi,replacement:'kindly',explanation:'Used more formal request wording.'},{id:'formal-thanks',pattern:/\bthanks\b/gi,replacement:'thank you',explanation:'Used a more formal closing.'});if(tone==='friendly')rules.push({id:'friendly-kindly',pattern:/\bkindly\b/gi,replacement:'please',explanation:'Softened formal wording for a warmer tone.'},{id:'friendly-inform',pattern:/\bI would like to inform you\b/gi,replacement:'I wanted to let you know',explanation:'Made the phrasing warmer and more conversational.'},{id:'friendly-hello',pattern:/\bHello\b/g,replacement:'Hi',explanation:'Used a warmer greeting.'});if(tone==='assertive')rules.push({id:'assertive-could',pattern:/\bcould you please\b/gi,replacement:'please',explanation:'Made the request more direct and confident.'},{id:'assertive-issues',pattern:/\bif you encounter any issues\b/gi,replacement:'if there are any issues',explanation:'Made the wording more direct.'},{id:'assertive-followup',pattern:/\bplease share an update\b/gi,replacement:'please provide an update',explanation:'Made the action more direct.'});return cwRewrite(result,rules)}
