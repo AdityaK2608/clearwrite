@@ -1,161 +1,24 @@
-const input = document.getElementById('inputText');
-const output = document.getElementById('resultArea');
-const resultHint = document.getElementById('resultHint');
-const resultMeta = document.getElementById('resultMeta');
-const charCount = document.getElementById('charCount');
-const copyBtn = document.getElementById('copyBtn');
-const clearBtn = document.getElementById('clearBtn');
-const sampleBtn = document.getElementById('sampleBtn');
-const modeHint = document.getElementById('modeHint');
-let lastResult = '';
-let mode = 'email';
-
-const samples = {
-  email: 'Hi Team,\n\nPlease find attached the report. Kindly check it and revert back to me if there is any issue.\n\nThanks & Regards,\nAditya',
-  conversation: 'hi, can you please check this once and let me know if there is any issue. i need this asap'
-};
-
-const replacements = [
-  [/\bpls\b/gi, 'please'],
-  [/\basap\b/gi, 'as soon as possible'],
-  [/\bkindly check it and revert back to me\b/gi, 'please review it and let me know'],
-  [/\brevert back\b/gi, 'get back'],
-  [/\bi need this asap\b/gi, 'I need this as soon as possible'],
-  [/\bcan you please check this once\b/gi, 'could you please check this'],
-  [/\bif there is any issue\b/gi, 'if you encounter any issues'],
-  [/\bplease find attached\b/gi, 'please find the attached'],
-];
-
-function normalize(text) {
-  let result = text.trim();
-  replacements.forEach(([pattern, replacement]) => { result = result.replace(pattern, replacement); });
-  result = result.replace(/\bi\b/g, 'I');
-  result = result.replace(/\b(i|we|you|the customer|customer)\s+([a-z])/g, (_, a, b) => `${a} ${b.toUpperCase()}`);
-  result = result.replace(/[ \t]+/g, ' ');
-  result = result.replace(/\s+\n/g, '\n');
-  return result;
-}
-
-function sentences(text) {
-  return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-}
-
-function ensurePunctuation(text) {
-  return text.split('\n').map(line => {
-    const trimmed = line.trim();
-    if (!trimmed || /^[A-Z][^:]{0,60}:$/.test(trimmed) || /^[-•]/.test(trimmed)) return line;
-    if (!/[.!?]$/.test(trimmed)) return `${trimmed}.`;
-    return trimmed;
-  }).join('\n');
-}
-
-function professional(text) {
-  let result = normalize(text);
-  result = result.replace(/\bhey\b/gi, 'Hi');
-  result = result.replace(/\bjust wanted to\b/gi, 'I would like to');
-  result = result.replace(/\bget back to me\b/gi, 'share your feedback');
-  result = result.replace(/\bcheck this\b/gi, 'review this');
-  result = result.replace(/\bneed this\b/gi, 'require this');
-  return ensurePunctuation(result);
-}
-
-function formal(text) {
-  let result = professional(text);
-  result = result.replace(/\bHi Team\b/gi, 'Dear Team');
-  result = result.replace(/\bHi\b/gi, 'Hello');
-  result = result.replace(/\bplease\b/gi, 'kindly');
-  result = result.replace(/\bthanks\b/gi, 'thank you');
-  return result;
-}
-
-function friendly(text) {
-  let result = normalize(text);
-  result = result.replace(/\bkindly\b/gi, 'please');
-  result = result.replace(/\bI would like to\b/gi, 'I wanted to');
-  result = result.replace(/\bHello\b/g, 'Hi');
-  return ensurePunctuation(result);
-}
-
-function concise(text) {
-  const normalized = normalize(text);
-  const parts = sentences(normalized);
-  const filtered = parts.filter(s => !/^I just wanted to let you know/i.test(s));
-  return (filtered.length ? filtered : parts).join(' ');
-}
-
-function grammar(text) {
-  let result = normalize(text);
-  result = result.replace(/,\s*(and|but|or)\s*/gi, ', $1 ');
-  result = ensurePunctuation(result);
-  return result;
-}
-
-function applyAction(action) {
-  const source = input.value.trim();
-  if (!source) {
-    output.innerHTML = '<div class="empty-state"><div class="spark">✦</div><p>Add some text first.</p><span>Paste an email or conversation, then choose an action.</span></div>';
-    resultHint.textContent = 'Waiting for your draft.';
-    copyBtn.disabled = true;
-    lastResult = '';
-    resultMeta.textContent = '';
-    return;
-  }
-
-  const handlers = { grammar, professional, concise, formal, friendly };
-  lastResult = handlers[action](source);
-  output.textContent = lastResult;
-  resultHint.textContent = `${action[0].toUpperCase()}${action.slice(1)} pass complete.`;
-  resultMeta.textContent = `${lastResult.length} characters · demo correction layer`;
-  copyBtn.disabled = false;
-}
-
-input.addEventListener('input', () => {
-  charCount.textContent = `${input.value.length} / 5000`;
-  if (!input.value) {
-    output.innerHTML = '<div class="empty-state"><div class="spark">✦</div><p>Your improved text will appear here.</p><span>Start with Grammar or Professional.</span></div>';
-    resultHint.textContent = 'Choose an action to preview the result.';
-    resultMeta.textContent = '';
-    copyBtn.disabled = true;
-    lastResult = '';
-  }
-});
-
-document.querySelectorAll('.action').forEach(button => {
-  button.addEventListener('click', () => applyAction(button.dataset.action));
-});
-
-document.querySelectorAll('.mode').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelectorAll('.mode').forEach(btn => {
-      btn.classList.remove('active');
-      btn.setAttribute('aria-selected', 'false');
-    });
-    button.classList.add('active');
-    button.setAttribute('aria-selected', 'true');
-    mode = button.dataset.mode;
-    modeHint.textContent = mode === 'email' ? 'Paste an email, note, or reply.' : 'Paste a Slack, Teams, or chat-style message.';
-  });
-});
-
-sampleBtn.addEventListener('click', () => {
-  input.value = samples[mode];
-  input.dispatchEvent(new Event('input'));
-});
-
-clearBtn.addEventListener('click', () => {
-  input.value = '';
-  input.dispatchEvent(new Event('input'));
-  input.focus();
-});
-
-copyBtn.addEventListener('click', async () => {
-  if (!lastResult) return;
-  try {
-    await navigator.clipboard.writeText(lastResult);
-    const previous = copyBtn.textContent;
-    copyBtn.textContent = 'Copied';
-    setTimeout(() => { copyBtn.textContent = previous; }, 1200);
-  } catch {
-    resultMeta.textContent = 'Copy unavailable — select the text manually.';
-  }
-});
+const input=document.getElementById('inputText'),output=document.getElementById('resultArea'),resultHint=document.getElementById('resultHint'),resultMeta=document.getElementById('resultMeta'),charCount=document.getElementById('charCount'),wordCount=document.getElementById('wordCount'),copyBtn=document.getElementById('copyBtn'),copyAllBtn=document.getElementById('copyAllBtn'),clearBtn=document.getElementById('clearBtn'),sampleBtn=document.getElementById('sampleBtn'),subjectText=document.getElementById('subjectText'),emailFields=document.getElementById('emailFields'),modeHint=document.getElementById('modeHint'),toneDescription=document.getElementById('toneDescription'),statusText=document.getElementById('statusText'),modeStats=document.getElementById('modeStats');
+let lastResult='',mode='email',tone='professional';
+const samples={email:{subject:'Firewall logs — requested timeframe',body:'Hi Team,\n\nPlease find attached the report. Kindly check it and revert back to me if there is any issue. We need the customer to confirm the exact timeframe.\n\nThanks & Regards,\nAditya'},conversation:{subject:'',body:'hi, can you please check this once and let me know if there is any issue. i need this asap'}};
+const replacements=[[/\bpls\b/gi,'please'],[/\basap\b/gi,'as soon as possible'],[/\bkindly check it and revert back to me\b/gi,'please review it and let me know'],[/\brevert back\b/gi,'get back'],[/\bi need this asap\b/gi,'I need this as soon as possible'],[/\bcan you please check this once\b/gi,'could you please check this'],[/\bif there is any issue\b/gi,'if you encounter any issues'],[/\bplease find attached\b/gi,'please find the attached']];
+function normalize(text){let r=text.trim();replacements.forEach(([p,x])=>r=r.replace(p,x));r=r.replace(/\bi\b/g,'I');r=r.replace(/\b(i|we|you|the customer|customer)\s+([a-z])/g,(_,a,b)=>`${a} ${b.toUpperCase()}`);r=r.replace(/[ \t]+/g,' ');r=r.replace(/\s+\n/g,'\n');return r}
+function punct(text){return text.split('\n').map(line=>{let t=line.trim();if(!t||/^[-•]/.test(t))return line;if(!/[.!?]$/.test(t))return `${t}.`;return t}).join('\n')}
+function grammar(text){return punct(normalize(text))}
+function improve(text){let r=normalize(text).replace(/\bhey\b/gi,'Hi').replace(/\bjust wanted to\b/gi,'I would like to').replace(/\bget back to me\b/gi,'share your feedback').replace(/\bcheck this\b/gi,'review this').replace(/\bneed this\b/gi,'require this');return punct(r)}
+function concise(text){let r=normalize(text);r=r.replace(/\b(I just wanted to let you know|I wanted to let you know)\b/gi,'');r=r.replace(/\s{2,}/g,' ');return punct(r)}
+function applyTone(text){let r=improve(text);if(tone==='formal')r=r.replace(/\bHi Team\b/gi,'Dear Team').replace(/\bHi\b/gi,'Hello').replace(/\bplease\b/gi,'kindly').replace(/\bthanks\b/gi,'thank you');if(tone==='friendly')r=r.replace(/\bkindly\b/gi,'please').replace(/\bI would like to\b/gi,'I wanted to').replace(/\bHello\b/g,'Hi');if(tone==='assertive')r=r.replace(/\bI would like to request\b/gi,'Please').replace(/\bcould you please\b/gi,'please').replace(/\bif you encounter any issues\b/gi,'if there are any issues');return punct(r)}
+function words(t){return t.trim()?t.trim().split(/\s+/).length:0}
+function showEmpty(message='Your polished text will appear here.',hint='Start with Grammar or Improve.'){output.innerHTML=`<div class="empty-state"><div class="spark">✦</div><p>${message}</p><span>${hint}</span></div>`;resultHint.textContent='Choose a writing action below.';resultMeta.textContent='';copyBtn.disabled=true;copyAllBtn.classList.add('hidden');lastResult=''}
+function applyAction(action){const source=input.value.trim();if(!source){showEmpty('Add some text first.','Paste an email or conversation, then choose an action.');return}const handlers={grammar,professional:improve,concise,tone:applyTone};lastResult=handlers[action](source);output.textContent=lastResult;resultHint.textContent=action==='concise'?'Shortened version ready.':action==='tone'?`${tone[0].toUpperCase()+tone.slice(1)} tone applied.`:`${action[0].toUpperCase()+action.slice(1)} pass complete.`;resultMeta.textContent=`${words(lastResult)} words · ${lastResult.length} characters · demo AI layer`;copyBtn.disabled=false;if(mode==='email'&&subjectText.value.trim())copyAllBtn.classList.remove('hidden');statusText.textContent='Demo AI layer · ready locally';}
+function updateCounts(){charCount.textContent=`${input.value.length} / 5000`;wordCount.textContent=`${words(input.value)} words`}
+input.addEventListener('input',()=>{updateCounts();if(!input.value.trim())showEmpty()});
+subjectText.addEventListener('input',()=>{if(lastResult&&subjectText.value.trim())copyAllBtn.classList.remove('hidden')});
+document.querySelectorAll('.action').forEach(b=>b.addEventListener('click',()=>applyAction(b.dataset.action)));
+document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.mode').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-selected','false')});b.classList.add('active');b.setAttribute('aria-selected','true');mode=b.dataset.mode;emailFields.classList.toggle('hidden',mode!=='email');modeHint.textContent=mode==='email'?'Subject, greeting, body and sign-off.':'Slack, Teams, or chat-style message.';modeStats.textContent=mode==='email'?'Email mode':'Conversation mode';input.placeholder=mode==='email'?'Type or paste your email here...':'Type or paste your conversation here...';if(!input.value.trim())showEmpty()}));
+document.querySelectorAll('.tone').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tone').forEach(x=>x.classList.remove('active'));b.classList.add('active');tone=b.dataset.tone;const d={professional:'Balanced workplace writing',formal:'Polished and respectful',friendly:'Warm and approachable',assertive:'Clear and confident'};toneDescription.textContent=d[tone]}));
+sampleBtn.addEventListener('click',()=>{input.value=samples[mode].body;subjectText.value=samples[mode].subject;updateCounts();showEmpty('Example loaded.','Choose an action to improve it.')});
+clearBtn.addEventListener('click',()=>{input.value='';subjectText.value='';updateCounts();showEmpty();input.focus()});
+copyBtn.addEventListener('click',async()=>{if(!lastResult)return;try{await navigator.clipboard.writeText(lastResult);const p=copyBtn.textContent;copyBtn.textContent='Copied';setTimeout(()=>copyBtn.textContent=p,1200)}catch{resultMeta.textContent='Copy unavailable — select the text manually.'}});
+copyAllBtn.addEventListener('click',async()=>{if(!lastResult)return;const full=`Subject: ${subjectText.value.trim()}\n\n${lastResult}`;try{await navigator.clipboard.writeText(full);copyAllBtn.textContent='Copied';setTimeout(()=>copyAllBtn.textContent='Copy with subject',1200)}catch{resultMeta.textContent='Copy unavailable — select the text manually.'}});
+updateCounts();
