@@ -1,4 +1,4 @@
-// ClearWrite Engine V10 — analysis + transformation pipeline
+// ClearWrite Engine V11 — semantic processing pipeline
 (function(){
   window.CWEngine=window.CWEngine||{};
   function contextualRewrite(value,context){
@@ -18,14 +18,11 @@
     const linguistic=CWEngine.analyze(text);
     const intent=CWEngine.detectIntent?CWEngine.detectIntent(text):{primary:'inform',confidence:.35,alternatives:[],scores:{}};
     const entities=CWEngine.extractEntities?CWEngine.extractEntities(text):[];
+    const frame=CWEngine.buildSemanticFrame?CWEngine.buildSemanticFrame(text,context):null;
+    const semantic=CWEngine.semanticDiagnostics?CWEngine.semanticDiagnostics(frame,linguistic):[];
     const suggestions=[];
-    const s=linguistic.signals;
-    if((intent.primary==='request'||s.request)&&!s.deadline)suggestions.push({type:'missing_deadline',message:'Consider adding a deadline or expected response time.',priority:'medium'});
-    if((intent.primary==='escalation'||s.escalation)&&!s.deadline)suggestions.push({type:'missing_urgency',message:'Consider stating the required response time or urgency.',priority:'high'});
-    if(intent.primary==='followup'||s.followup)suggestions.push({type:'next_step',message:'Make the pending item and expected next step explicit.',priority:'medium'});
-    if(s.vague)suggestions.push({type:'vague_reference',message:'Replace vague references such as “this” or “it” with the specific item when useful.',priority:'low'});
-    if((intent.primary==='request'||intent.primary==='escalation')&&!entities.some(e=>e.type==='actor'))suggestions.push({type:'ownership',message:'Consider identifying who should take the requested action.',priority:'low'});
-    return {linguistic,intent,entities,suggestions,label:context&&context.label||'Writing'};
+    semantic.forEach(d=>suggestions.push({type:d.id,message:d.suggestion,priority:d.severity,confidence:d.confidence}));
+    return {linguistic,intent,entities,frame,semantic,suggestions,label:context&&context.label||'Writing'};
   }
   function run(text,operation,context,tone){
     const original=text;
@@ -42,11 +39,7 @@
     if(!validation.passed)return{text:original,changes:[],analysis,scores,validation,rolledBack:true};
     return{text:value,changes:applied.changes,analysis,scores,validation,rolledBack:false};
   }
-  window.clearwriteAnalyze=function(text,context){
-    const c=context||{key:'email',label:'Email'};
-    const a=buildAnalysis(text,c);
-    return {label:c.label,context:c.key,wordCount:a.linguistic.wordCount,signals:a.linguistic.signals,intent:a.intent,entities:a.entities,suggestions:a.suggestions};
-  };
+  window.clearwriteAnalyze=function(text,context){const c=context||{key:'email',label:'Email'};const a=buildAnalysis(text,c);return{label:c.label,context:c.key,wordCount:a.linguistic.wordCount,signals:a.linguistic.signals,intent:a.intent,entities:a.entities,frame:a.frame,diagnostics:a.semantic,suggestions:a.suggestions};};
   window.clearwriteCore=function(text){return run(text,'grammar',null,null)};
   window.clearwriteImprove=function(text,context){return run(text,'improve',context)};
   window.clearwriteConcise=function(text,context){return run(text,'concise',context)};
